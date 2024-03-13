@@ -34,6 +34,7 @@ import software.amazon.awscdk.services.s3.IBucket;
 import software.amazon.awscdk.services.s3.LifecycleRule;
 import software.constructs.Construct;
 
+import sleeper.cdk.TracingUtils;
 import sleeper.cdk.Utils;
 import sleeper.cdk.jars.BuiltJar;
 import sleeper.cdk.jars.BuiltJars;
@@ -56,8 +57,9 @@ import static sleeper.configuration.properties.instance.CommonProperty.REGION;
 
 @SuppressFBWarnings("NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE")
 public class AthenaStack extends NestedStack {
-    public AthenaStack(Construct scope, String id, InstanceProperties instanceProperties, BuiltJars jars,
-                       CoreStacks coreStacks) {
+    public AthenaStack(
+            Construct scope, String id, InstanceProperties instanceProperties,
+            BuiltJars jars, CoreStacks coreStacks) {
         super(scope, id);
 
         IBucket jarsBucket = Bucket.fromBucketName(this, "JarsBucket", jars.bucketName());
@@ -84,10 +86,6 @@ public class AthenaStack extends NestedStack {
                 .removalPolicy(RemovalPolicy.DESTROY)
                 .pendingWindow(Duration.days(7))
                 .build();
-
-        Map<String, String> env = Utils.createDefaultEnvironment(instanceProperties);
-        env.put("spill_bucket", spillBucket.getBucketName());
-        env.put("kms_key_id", spillMasterKey.getKeyId());
 
         Integer memory = instanceProperties.getInt(ATHENA_COMPOSITE_HANDLER_MEMORY);
         Integer timeout = instanceProperties.getInt(ATHENA_COMPOSITE_HANDLER_TIMEOUT_IN_SECONDS);
@@ -116,7 +114,8 @@ public class AthenaStack extends NestedStack {
                 .build();
 
         for (String className : handlerClasses) {
-            IFunction handler = createConnector(className, instanceProperties, jarCode, env, memory, timeout);
+            IFunction handler = createConnector(
+                    className, instanceProperties, jarCode, spillBucket, spillMasterKey, memory, timeout);
 
             jarsBucket.grantRead(handler);
 
@@ -140,21 +139,28 @@ public class AthenaStack extends NestedStack {
         Utils.addStackTagIfSet(this, instanceProperties);
     }
 
-    private IFunction createConnector(String className, InstanceProperties instanceProperties, LambdaCode jar, Map<String, String> env, Integer memory, Integer timeout) {
+    private IFunction createConnector(
+            String className, InstanceProperties instanceProperties, LambdaCode jar,
+            Bucket spillBucket, Key spillMasterKey, Integer memory, Integer timeout) {
         String instanceId = instanceProperties.get(ID);
         String simpleClassName = getSimpleClassName(className);
 
         String functionName = Utils.truncateTo64Characters(String.join("-", "sleeper",
                 instanceId.toLowerCase(Locale.ROOT), simpleClassName, "athena-composite-handler"));
 
-        IFunction athenaCompositeHandler = jar.buildFunction(this, simpleClassName + "AthenaCompositeHandler", builder -> builder
-                .functionName(functionName)
-                .memorySize(memory)
-                .timeout(Duration.seconds(timeout))
-                .runtime(Runtime.JAVA_11)
-                .logGroup(createLambdaLogGroup(this, simpleClassName + "AthenaCompositeHandlerLogGroup", functionName, instanceProperties))
-                .handler(className)
-                .environment(env));
+        IFunction athenaCompositeHandler = jar.createFunction(this, simpleClassName + "AthenaCompositeHandler")
+                .environmentVariables(Map.of(
+                        "spill_bucket", spillBucket.getBucketName(),
+                        "kms_key_id", spillMasterKey.getKeyId()))
+                .config(builder -> builder
+                        .functionName(functionName)
+                        .memorySize(memory)
+                        .timeout(Duration.seconds(timeout))
+                        .runtime(Runtime.JAVA_11)
+                        .logGroup(createLambdaLogGroup(this, simpleClassName + "AthenaCompositeHandlerLogGroup", functionName, instanceProperties))
+                        .handler(className)
+                        .tracing(TracingUtils.active(instanceProperties)))
+                .build();
 
         CfnDataCatalog.Builder.create(this, simpleClassName + "AthenaDataCatalog")
                 .name(instanceId + simpleClassName + "SleeperConnector")

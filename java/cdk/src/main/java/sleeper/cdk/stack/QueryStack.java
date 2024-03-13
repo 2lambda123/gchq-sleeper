@@ -47,6 +47,7 @@ import software.amazon.awscdk.services.sqs.IQueue;
 import software.amazon.awscdk.services.sqs.Queue;
 import software.constructs.Construct;
 
+import sleeper.cdk.TracingUtils;
 import sleeper.cdk.Utils;
 import sleeper.cdk.jars.BuiltJar;
 import sleeper.cdk.jars.BuiltJars;
@@ -84,12 +85,9 @@ public class QueryStack extends NestedStack {
     private IFunction queryExecutorLambda;
     private IFunction leafPartitionQueryLambda;
 
-    public QueryStack(Construct scope,
-            String id,
-            InstanceProperties instanceProperties,
-            BuiltJars jars,
-            CoreStacks coreStacks,
-            QueryQueueStack queryQueueStack) {
+    public QueryStack(
+            Construct scope, String id, InstanceProperties instanceProperties,
+            BuiltJars jars, CoreStacks coreStacks, QueryQueueStack queryQueueStack) {
         super(scope, id);
 
         IBucket jarsBucket = Bucket.fromBucketName(this, "JarsBucket", jars.bucketName());
@@ -131,7 +129,8 @@ public class QueryStack extends NestedStack {
      * @param  description        a description for the function
      * @return                    an IFunction
      */
-    private IFunction createFunction(String id, LambdaCode queryJar, InstanceProperties instanceProperties,
+    private IFunction createFunction(
+            String id, LambdaCode queryJar, InstanceProperties instanceProperties,
             String functionName, String handler, String description) {
         return queryJar.buildFunction(this, id, builder -> builder
                 .functionName(functionName)
@@ -140,8 +139,8 @@ public class QueryStack extends NestedStack {
                 .memorySize(instanceProperties.getInt(QUERY_PROCESSOR_LAMBDA_MEMORY_IN_MB))
                 .timeout(Duration.seconds(instanceProperties.getInt(QUERY_PROCESSOR_LAMBDA_TIMEOUT_IN_SECONDS)))
                 .handler(handler)
-                .environment(Utils.createDefaultEnvironment(instanceProperties))
-                .logGroup(createLambdaLogGroup(this, id + "LogGroup", functionName, instanceProperties)));
+                .logGroup(createLambdaLogGroup(this, id + "LogGroup", functionName, instanceProperties))
+                .tracing(TracingUtils.passThrough(instanceProperties)));
     }
 
     /***
@@ -154,8 +153,9 @@ public class QueryStack extends NestedStack {
      * @param  queryTrackingTable used to track a query
      * @return                    the lambda created
      */
-    private IFunction setupQueriesQueryLambda(CoreStacks coreStacks, QueryQueueStack queryQueueStack, InstanceProperties instanceProperties, LambdaCode queryJar,
-            IBucket jarsBucket, ITable queryTrackingTable) {
+    private IFunction setupQueriesQueryLambda(
+            CoreStacks coreStacks, QueryQueueStack queryQueueStack, InstanceProperties instanceProperties,
+            LambdaCode queryJar, IBucket jarsBucket, ITable queryTrackingTable) {
         String functionName = Utils.truncateTo64Characters(String.join("-", "sleeper",
                 instanceProperties.get(ID).toLowerCase(Locale.ROOT), "query-executor"));
         IFunction lambda = createFunction("QueryExecutorLambda", queryJar, instanceProperties, functionName,

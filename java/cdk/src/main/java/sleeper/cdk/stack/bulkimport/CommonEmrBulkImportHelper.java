@@ -34,6 +34,7 @@ import software.amazon.awscdk.services.sqs.DeadLetterQueue;
 import software.amazon.awscdk.services.sqs.Queue;
 import software.constructs.Construct;
 
+import sleeper.cdk.TracingUtils;
 import sleeper.cdk.Utils;
 import sleeper.cdk.jars.BuiltJar;
 import sleeper.cdk.jars.BuiltJars;
@@ -45,7 +46,6 @@ import sleeper.configuration.properties.instance.InstanceProperties;
 
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 import static sleeper.cdk.Utils.createLambdaLogGroup;
@@ -60,10 +60,9 @@ public class CommonEmrBulkImportHelper {
     private final IngestStatusStoreResources statusStoreResources;
     private final CoreStacks coreStacks;
 
-    public CommonEmrBulkImportHelper(Construct scope, String shortId,
-                                     InstanceProperties instanceProperties,
-                                     CoreStacks coreStacks,
-                                     IngestStatusStoreResources ingestStatusStoreResources) {
+    public CommonEmrBulkImportHelper(
+            Construct scope, String shortId, InstanceProperties instanceProperties,
+            CoreStacks coreStacks, IngestStatusStoreResources ingestStatusStoreResources) {
         this.scope = scope;
         this.shortId = shortId;
         this.instanceProperties = instanceProperties;
@@ -86,7 +85,8 @@ public class CommonEmrBulkImportHelper {
                 .queue(queueForDLs)
                 .build();
 
-        queueForDLs.metricApproximateNumberOfMessagesVisible().with(MetricOptions.builder()
+        queueForDLs.metricApproximateNumberOfMessagesVisible()
+                .with(MetricOptions.builder()
                         .period(Duration.seconds(60))
                         .statistic("Sum")
                         .build())
@@ -114,33 +114,36 @@ public class CommonEmrBulkImportHelper {
         return emrBulkImportJobQueue;
     }
 
-    public IFunction createJobStarterFunction(String bulkImportPlatform, Queue jobQueue, BuiltJars jars,
-                                              IBucket importBucket, CommonEmrBulkImportStack commonEmrStack) {
+    public IFunction createJobStarterFunction(
+            String bulkImportPlatform, Queue jobQueue, BuiltJars jars,
+            IBucket importBucket, CommonEmrBulkImportStack commonEmrStack) {
         return createJobStarterFunction(bulkImportPlatform, jobQueue, jars, importBucket,
                 List.of(commonEmrStack.getEmrRole(), commonEmrStack.getEc2Role()));
     }
 
-    public IFunction createJobStarterFunction(String bulkImportPlatform, Queue jobQueue, BuiltJars jars,
-                                              IBucket importBucket, List<IRole> passRoles) {
+    public IFunction createJobStarterFunction(
+            String bulkImportPlatform, Queue jobQueue, BuiltJars jars,
+            IBucket importBucket, List<IRole> passRoles) {
         String instanceId = instanceProperties.get(ID);
-        Map<String, String> env = Utils.createDefaultEnvironment(instanceProperties);
-        env.put("BULK_IMPORT_PLATFORM", bulkImportPlatform);
         IBucket jarsBucket = Bucket.fromBucketName(scope, "CodeBucketEMR", instanceProperties.get(JARS_BUCKET));
         LambdaCode bulkImportStarterJar = jars.lambdaCode(BuiltJar.BULK_IMPORT_STARTER, jarsBucket);
 
         String functionName = Utils.truncateTo64Characters(String.join("-", "sleeper",
                 instanceId.toLowerCase(Locale.ROOT), shortId, "bulk-import-job-starter"));
 
-        IFunction function = bulkImportStarterJar.buildFunction(scope, "BulkImport" + shortId + "JobStarter", builder -> builder
-                .functionName(functionName)
-                .description("Function to start " + shortId + " bulk import jobs")
-                .memorySize(1024)
-                .timeout(Duration.minutes(2))
-                .environment(env)
-                .runtime(software.amazon.awscdk.services.lambda.Runtime.JAVA_11)
-                .handler("sleeper.bulkimport.starter.BulkImportStarterLambda")
-                .logGroup(createLambdaLogGroup(scope, "BulkImport" + shortId + "JobStarterLogGroup", functionName, instanceProperties))
-                .events(Lists.newArrayList(SqsEventSource.Builder.create(jobQueue).batchSize(1).build())));
+        IFunction function = bulkImportStarterJar.createFunction(scope, "BulkImport" + shortId + "JobStarter")
+                .environmentVariable("BULK_IMPORT_PLATFORM", bulkImportPlatform)
+                .config(builder -> builder
+                        .functionName(functionName)
+                        .description("Function to start " + shortId + " bulk import jobs")
+                        .memorySize(1024)
+                        .timeout(Duration.minutes(2))
+                        .runtime(software.amazon.awscdk.services.lambda.Runtime.JAVA_11)
+                        .handler("sleeper.bulkimport.starter.BulkImportStarterLambda")
+                        .logGroup(createLambdaLogGroup(scope, "BulkImport" + shortId + "JobStarterLogGroup", functionName, instanceProperties))
+                        .events(Lists.newArrayList(SqsEventSource.Builder.create(jobQueue).batchSize(1).build()))
+                        .tracing(TracingUtils.passThrough(instanceProperties)))
+                .build();
 
         coreStacks.grantReadConfigAndPartitions(function);
         importBucket.grantReadWrite(function);

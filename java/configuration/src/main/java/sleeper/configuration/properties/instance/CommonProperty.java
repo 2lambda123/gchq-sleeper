@@ -230,6 +230,12 @@ public interface CommonProperty {
             .validationPredicate(Utils::isPositiveInteger)
             .propertyGroup(InstancePropertyGroup.COMMON)
             .build();
+    UserDefinedInstanceProperty TRACING_ENABLED = Index.propertyBuilder("sleeper.opentelemetry.tracing.enabled")
+            .description("This specifies whether OpenTelemetry tracing is enabled.")
+            .defaultValue("true")
+            .validationPredicate(Utils::isTrueOrFalse)
+            .propertyGroup(InstancePropertyGroup.COMMON)
+            .runCdkDeployWhenChanged(true).build();
 
     static List<UserDefinedInstanceProperty> getAll() {
         return Index.INSTANCE.getAll();

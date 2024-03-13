@@ -64,7 +64,6 @@ import java.util.stream.Stream;
 
 import static sleeper.configuration.properties.instance.CommonProperty.ACCOUNT;
 import static sleeper.configuration.properties.instance.CommonProperty.ID;
-import static sleeper.configuration.properties.instance.CommonProperty.JARS_BUCKET;
 import static sleeper.configuration.properties.instance.CommonProperty.OPTIONAL_STACKS;
 import static sleeper.configuration.properties.instance.CommonProperty.REGION;
 
@@ -322,7 +321,7 @@ public class SleeperCdkApp extends Stack {
                 .account(instanceProperties.get(ACCOUNT))
                 .region(instanceProperties.get(REGION))
                 .build();
-        BuiltJars jars = new BuiltJars(AmazonS3ClientBuilder.defaultClient(), instanceProperties.get(JARS_BUCKET));
+        BuiltJars jars = new BuiltJars(AmazonS3ClientBuilder.defaultClient(), instanceProperties);
 
         new SleeperCdkApp(app, id, StackProps.builder()
                 .stackName(id)

@@ -34,6 +34,7 @@ import software.amazon.awscdk.services.sqs.IQueue;
 import software.amazon.awscdk.services.sqs.Queue;
 import software.constructs.Construct;
 
+import sleeper.cdk.TracingUtils;
 import sleeper.cdk.Utils;
 import sleeper.cdk.jars.BuiltJar;
 import sleeper.cdk.jars.BuiltJars;
@@ -46,7 +47,6 @@ import sleeper.ingest.batcher.store.DynamoDBIngestRequestFormat;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 
 import static sleeper.cdk.Utils.createLambdaLogGroup;
 import static sleeper.cdk.Utils.removalPolicy;
@@ -128,8 +128,6 @@ public class IngestBatcherStack extends NestedStack {
         String jobCreatorName = Utils.truncateTo64Characters(String.join("-", "sleeper",
                 instanceProperties.get(ID).toLowerCase(Locale.ROOT), "batch-ingest-jobs"));
 
-        Map<String, String> environmentVariables = Utils.createDefaultEnvironment(instanceProperties);
-
         IFunction submitterLambda = submitterJar.buildFunction(this, "SubmitToIngestBatcherLambda", builder -> builder
                 .functionName(submitterName)
                 .description("Triggered by an SQS event that contains a request to ingest a file")
@@ -137,9 +135,9 @@ public class IngestBatcherStack extends NestedStack {
                 .memorySize(instanceProperties.getInt(INGEST_BATCHER_SUBMITTER_MEMORY_IN_MB))
                 .timeout(Duration.seconds(instanceProperties.getInt(INGEST_BATCHER_SUBMITTER_TIMEOUT_IN_SECONDS)))
                 .handler("sleeper.ingest.batcher.submitter.IngestBatcherSubmitterLambda::handleRequest")
-                .environment(environmentVariables)
                 .logGroup(createLambdaLogGroup(this, "SubmitToIngestBatcherLogGroup", submitterName, instanceProperties))
-                .events(List.of(new SqsEventSource(submitQueue))));
+                .events(List.of(new SqsEventSource(submitQueue)))
+                .tracing(TracingUtils.passThrough(instanceProperties)));
         instanceProperties.set(INGEST_BATCHER_SUBMIT_REQUEST_FUNCTION, submitterLambda.getFunctionName());
 
         ingestRequestsTable.grantReadWriteData(submitterLambda);
@@ -154,9 +152,9 @@ public class IngestBatcherStack extends NestedStack {
                 .memorySize(instanceProperties.getInt(INGEST_BATCHER_JOB_CREATION_MEMORY_IN_MB))
                 .timeout(Duration.seconds(instanceProperties.getInt(INGEST_BATCHER_JOB_CREATION_TIMEOUT_IN_SECONDS)))
                 .handler("sleeper.ingest.batcher.job.creator.IngestBatcherJobCreatorLambda::eventHandler")
-                .environment(environmentVariables)
                 .reservedConcurrentExecutions(1)
-                .logGroup(createLambdaLogGroup(this, "IngestBatcherJobCreationLogGroup", jobCreatorName, instanceProperties)));
+                .logGroup(createLambdaLogGroup(this, "IngestBatcherJobCreationLogGroup", jobCreatorName, instanceProperties))
+                .tracing(TracingUtils.active(instanceProperties)));
         instanceProperties.set(INGEST_BATCHER_JOB_CREATION_FUNCTION, jobCreatorLambda.getFunctionName());
 
         ingestRequestsTable.grantReadWriteData(jobCreatorLambda);
