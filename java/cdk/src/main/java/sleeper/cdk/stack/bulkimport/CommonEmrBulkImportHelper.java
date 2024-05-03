@@ -30,6 +30,7 @@ import software.amazon.awscdk.services.sqs.DeadLetterQueue;
 import software.amazon.awscdk.services.sqs.Queue;
 import software.constructs.Construct;
 
+import sleeper.cdk.TracingUtils;
 import sleeper.cdk.Utils;
 import sleeper.cdk.jars.BuiltJar;
 import sleeper.cdk.jars.BuiltJars;
@@ -131,7 +132,8 @@ public class CommonEmrBulkImportHelper {
                 .runtime(software.amazon.awscdk.services.lambda.Runtime.JAVA_11)
                 .handler("sleeper.bulkimport.starter.BulkImportStarterLambda")
                 .logGroup(createLambdaLogGroup(scope, "BulkImport" + shortId + "JobStarterLogGroup", functionName, instanceProperties))
-                .events(Lists.newArrayList(SqsEventSource.Builder.create(jobQueue).batchSize(1).build())));
+                .events(Lists.newArrayList(SqsEventSource.Builder.create(jobQueue).batchSize(1).build()))
+                .tracing(TracingUtils.active(instanceProperties)));
 
         coreStacks.grantReadConfigAndPartitions(function);
         importBucket.grantReadWrite(function);
