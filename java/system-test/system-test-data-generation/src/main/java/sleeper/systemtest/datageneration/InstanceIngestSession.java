@@ -78,6 +78,10 @@ public class InstanceIngestSession implements AutoCloseable {
         return sqs;
     }
 
+    public AmazonDynamoDB dynamoDB() {
+        return dynamo;
+    }
+
     public Configuration hadoopConfiguration() {
         return hadoopConfiguration;
     }
