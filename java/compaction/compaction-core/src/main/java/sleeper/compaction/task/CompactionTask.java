@@ -137,27 +137,31 @@ public class CompactionTask {
                 CompactionJob job = message.getJob();
                 String jobRunId = jobRunIdSupplier.get();
                 Instant jobStartTime = timeSupplier.get();
+                boolean filesAssigned = false;
                 try {
                     waitForFiles.wait(job);
+                    filesAssigned = true;
                 } catch (Exception e) {
                     LOGGER.error("Failed waiting for files to be assigned to job, putting job back on queue", e);
                     numConsecutiveFailures++;
                     message.failed();
                 }
-                try {
-                    RecordsProcessedSummary summary = compact(job, jobRunId, jobStartTime);
-                    taskFinishedBuilder.addJobSummary(summary);
-                    message.completed();
-                    numConsecutiveFailures = 0;
-                    lastActiveTime = summary.getFinishTime();
-                } catch (Exception e) {
-                    Instant jobFinishTime = timeSupplier.get();
-                    jobStatusStore.jobFailed(compactionJobFailed(job,
-                            new ProcessRunTime(jobStartTime, jobFinishTime))
-                            .failure(e).taskId(taskId).jobRunId(jobRunId).build());
-                    LOGGER.error("Failed processing compaction job, putting job back on queue", e);
-                    numConsecutiveFailures++;
-                    message.failed();
+                if (filesAssigned) {
+                    try {
+                        RecordsProcessedSummary summary = compact(job, jobRunId, jobStartTime);
+                        taskFinishedBuilder.addJobSummary(summary);
+                        message.completed();
+                        numConsecutiveFailures = 0;
+                        lastActiveTime = summary.getFinishTime();
+                    } catch (Exception e) {
+                        Instant jobFinishTime = timeSupplier.get();
+                        jobStatusStore.jobFailed(compactionJobFailed(job,
+                                new ProcessRunTime(jobStartTime, jobFinishTime))
+                                .failure(e).taskId(taskId).jobRunId(jobRunId).build());
+                        LOGGER.error("Failed processing compaction job, putting job back on queue", e);
+                        numConsecutiveFailures++;
+                        message.failed();
+                    }
                 }
             }
         }
