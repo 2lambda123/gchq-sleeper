@@ -139,6 +139,12 @@ public class CompactionTask {
                 Instant jobStartTime = timeSupplier.get();
                 try {
                     waitForFiles.wait(job);
+                } catch (Exception e) {
+                    LOGGER.error("Failed waiting for files to be assigned to job, putting job back on queue", e);
+                    numConsecutiveFailures++;
+                    message.failed();
+                }
+                try {
                     RecordsProcessedSummary summary = compact(job, jobRunId, jobStartTime);
                     taskFinishedBuilder.addJobSummary(summary);
                     message.completed();
