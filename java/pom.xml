@@ -64,7 +64,7 @@
         -->
         <spark.version>3.4.1</spark.version>
         <hadoop.version>3.4.0</hadoop.version>
-        <parquet-hadoop.version>1.14.1</parquet-hadoop.version>
+        <parquet-hadoop.version>1.14.2</parquet-hadoop.version>
         <joom.spark.platform.version>0.4.7</joom.spark.platform.version>
         <!--
         Hadoop AWS uses an old version of wildfly-openssl.
