@@ -145,7 +145,7 @@
         <reload4j.version>1.2.25</reload4j.version>
         <java-websocket.version>1.5.7</java-websocket.version>
         <arrow.version>17.0.0</arrow.version>
-        <bouncycastle.version>1.78.1</bouncycastle.version>
+        <bouncycastle.version>1.79</bouncycastle.version>
         <athena.version>2024.42.3</athena.version>
         <trino.version>463</trino.version>
         <!-- Trino requires an old version of JGraphT -->
