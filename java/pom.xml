@@ -153,7 +153,7 @@
         <!-- Trino's AssertJ plugin is not compatible with the latest version -->
         <trino.assertj.version>3.27.2</trino.assertj.version>
         <!-- Build module uses Jersey for communicating with GitHub API -->
-        <jersey.version>3.1.9</jersey.version>
+        <jersey.version>3.1.10</jersey.version>
         <!-- Netty version is managed because S3, Athena and Arrow depend on it but use incompatible versions -->
         <netty.version>4.1.116.Final</netty.version>
         <!-- Jetty and Jakarta versions are managed because WireMock and Hadoop use different versions. -->
