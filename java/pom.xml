@@ -197,7 +197,7 @@
         <compiler.plugin.version>3.13.0</compiler.plugin.version>
         <enforcer.plugin.version>3.5.0</enforcer.plugin.version>
         <distribution.format>dir</distribution.format>
-        <spotbugs.version>4.8.6</spotbugs.version>
+        <spotbugs.version>4.9.0</spotbugs.version>
         <spotbugs.plugin.version>4.8.6.6</spotbugs.plugin.version>
         <go-offline.plugin.version>1.2.8</go-offline.plugin.version>
         <dependency-check.plugin.version>11.1.1</dependency-check.plugin.version>
