@@ -92,7 +92,7 @@
         <!-- Hadoop declares an old version of Avro with vulnerabilities. Managed from 1.7.7. -->
         <avro.version>1.12.0</avro.version>
         <!-- Hadoop declares an old version of json-smart with vulnerabilities. Managed from 2.4.7. -->
-        <json-smart.version>2.5.1</json-smart.version>
+        <json-smart.version>2.5.2</json-smart.version>
         <!-- Hadoop declares an old version of Kerby with vulnerabilities. Managed from 1.0.1. -->
         <kerby.version>2.1.0</kerby.version>
         <!-- Hadoop declares an old version of XNIO with vulnerabilities. Managed from 3.8.8.Final. -->
