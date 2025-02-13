@@ -144,7 +144,7 @@
         <slf4j.version>2.0.16</slf4j.version>
         <reload4j.version>1.2.26</reload4j.version>
         <java-websocket.version>1.6.0</java-websocket.version>
-        <arrow.version>18.1.0</arrow.version>
+        <arrow.version>18.2.0</arrow.version>
         <bouncycastle.version>1.80</bouncycastle.version>
         <athena.version>2025.3.2</athena.version>
         <trino.version>470</trino.version>
